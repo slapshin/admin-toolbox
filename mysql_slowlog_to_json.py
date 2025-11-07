@@ -51,14 +51,24 @@ class SlowLogParser:
 
         # User@Host line
         elif line.startswith("# User@Host:"):
-            pattern = r"(\S+)\[(\S+)\]\s+@\s+(\S+)\s+\[([\d.]*)\]"
+            # Pattern handles both with and without hostname
+            # Examples:
+            # User@Host: user[dbuser] @ hostname [1.2.3.4]
+            # User@Host: user[dbuser] @  [1.2.3.4]  Id: 123
+            pattern = r"(\S+)\[(\S+)\]\s+@\s+(\S*)\s+\[([\d.]*)\]"
             match = re.search(pattern, line)
             if match:
                 self.current_query["user"] = match.group(1)
                 self.current_query["database_user"] = match.group(2)
-                self.current_query["host"] = match.group(3)
+                host = match.group(3) if match.group(3) else None
+                self.current_query["host"] = host
                 ip = match.group(4) if match.group(4) else None
                 self.current_query["ip"] = ip
+
+            # Also extract Id if present
+            id_match = re.search(r"Id:\s+(\d+)", line)
+            if id_match:
+                self.current_query["connection_id"] = int(id_match.group(1))
 
         # Query_time line
         elif line.startswith("# Query_time:"):
